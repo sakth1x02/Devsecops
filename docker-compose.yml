@@ -4,6 +4,7 @@ services:
   client:
     build: client
     container_name: client
+    image: client
     ports:
       - '8081:8081'
     networks:
@@ -12,19 +13,17 @@ services:
   server:
     build: server
     container_name: server
+    image: netflix   # <-- This is important for Jenkins tagging
     environment:
       - PORT=3000
       - BASE_API_URL=api
       - CLIENT_URL=http://localhost:8081
       - JWT_SECRET=update_your_JWT_secret
-      - MONGO_URI=mongodb://mongo:27017/mern_ecommerce # Default Mongo URL & DB name when running project locally
+      - MONGO_URI=mongodb://mongo:27017/mern_ecommerce
     ports:
       - '3000:3000'
-    command: [
-        'sh',
-        '-c',
-        'npm run seed:db admin@example.com admin123 && npm start'
-      ] # Default email and password arguments to database seed script - update your admin email and password
+    command: >
+      sh -c 'npm run seed:db admin@example.com admin123 && npm start'
     depends_on:
       - mongo
     networks:

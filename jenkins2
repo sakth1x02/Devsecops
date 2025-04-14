@@ -26,7 +26,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonar-server') {
-                    sh ''' 
+                    sh '''
                         $SCANNER_HOME/bin/sonar-scanner \
                         -Dsonar.projectName=Netflix \
                         -Dsonar.projectKey=Netflix
@@ -51,8 +51,20 @@ pipeline {
 
         stage('OWASP FS Scan') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                // Make sure output directory is clean
+                sh 'rm -rf dependency-check-report && mkdir dependency-check-report'
+
+                // Run OWASP Dependency-Check with XML output format
+                dependencyCheck additionalArguments: '--scan ./ --format XML --out dependency-check-report --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+
+                // Confirm the report was created
+                sh 'ls -lh dependency-check-report'
+
+                // Optional: explicitly show the path of the report
+                sh 'find dependency-check-report -name "*.xml"'
+
+                // Publish the XML report
+                dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
             }
         }
 
@@ -68,7 +80,11 @@ pipeline {
                     withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
                         sh '/usr/local/bin/docker-compose build'
                         sh 'docker tag netflix sakth1x02/netflix:latest'
+                        sh 'docker tag server sakth1x02/server:latest'
+                        sh 'docker tag mongo:latest sakth1x02/mongo:latest'
                         sh 'docker push sakth1x02/netflix:latest'
+                        sh 'docker push sakth1x02/server:latest'
+                        sh 'docker push sakth1x02/mongo:latest'
                     }
                 }
             }
@@ -77,6 +93,7 @@ pipeline {
         stage('Trivy Image Scan') {
             steps {
                 sh "trivy image sakth1x02/netflix:latest > trivyimage.txt"
+                sh "trivy image sakth1x02/server:latest > trivyimage.txt"
             }
         }
 
